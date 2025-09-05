@@ -1,70 +1,115 @@
-from Forklift import pack_to_cra, extract_from_cra
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import ttk, filedialog
+from Forklift import pack_files, extract_files, pack_pallet, extract_pallet, list_pallet_contents
 
-def craeate_gui():
-    def pack_files():
-        file_paths = filedialog.askopenfilenames()
-        cra_filename = filedialog.asksaveasfilename(defaultextension=".cra", filetypes=[("crate files", "*.cra")])
-        if file_paths and cra_filename:
-            pack_to_cra(file_paths, cra_filename)
-            print(f"Packed files into {cra_filename}")
+# ---------------- Main window ----------------
+root = tk.Tk()
+root.title("Asset Warehouse")
+root.configure(bg='#2b2b2b')
 
-    def extract_files():
-        cra_filename = filedialog.askopenfilename(filetypes=[("crate files", "*.cra")])
-        extract_path = filedialog.askdirectory()
-        if cra_filename and extract_path:
-            extract_from_cra(cra_filename, extract_path)
-            print(f"Extracted files to {extract_path}")
+icon_path = "icons/window_icon.ico"
+root.iconbitmap(icon_path)
 
-    # Dark theme colors
-    bg_color = "#2e2e2e"  # Background color
-    fg_color = "#ffffff"  # Foreground (text) color
-    btn_bg_color = "#444444"  # Button background color
-    btn_fg_color = "#ffffff"  # Button text color
+# ---------------- Styles ----------------
+style = ttk.Style()
+style.theme_use("default")
+style.configure("Treeview",
+                background="#2b2b2b",
+                foreground="white",
+                fieldbackground="#2b2b2b",
+                rowheight=22)
+style.configure("Treeview.Heading",
+                background="#3a3a3a",
+                foreground="white")
+style.map("Treeview",
+          background=[("selected", "#444444")],
+          foreground=[("selected", "white")])
 
-    root = tk.Tk()
-    root.title("File Warehouse")
+# ---------------- Load button icons ----------------
+pack_icon = tk.PhotoImage(file="icons/pack_icon.png")   # use .png for transparency
+unpack_icon = tk.PhotoImage(file="icons/extract_icon.png")
+pallet_icon = tk.PhotoImage(file="icons/pallet_icon.png")
 
-    # Set the custom window icon
-    root.iconbitmap('icons/window_icon.ico')
+# ---------------- Crates ----------------
+def pack_crate():
+    file_paths = filedialog.askopenfilenames(title="Select files for crate")
+    if not file_paths: return
+    cra_file = filedialog.asksaveasfilename(defaultextension=".cra",
+                                            filetypes=[("Crates", "*.cra")])
+    if not cra_file: return
+    pack_files(file_paths, cra_file)
 
-    # Set the overall theme of the root window
-    root.configure(bg=bg_color)
+def unpack_crate():
+    cra_file = filedialog.askopenfilename(filetypes=[("Crates", "*.cra")])
+    if not cra_file: return
+    folder = filedialog.askdirectory()
+    if not folder: return
+    extract_files(cra_file, folder)
 
-    # Load the icon images
-    pack_icon = tk.PhotoImage(file="icons/pack_icon.png")
-    extract_icon = tk.PhotoImage(file="icons/extract_icon.png")
+# ---------------- Pallets ----------------
+def open_pallet_manager():
+    pal_win = tk.Toplevel(root)
+    pal_win.title("Pallet Manager")
+    pal_win.configure(bg='#2b2b2b')
+    pal_win.iconbitmap(icon_path)
 
-    # craeate styled buttons with icons
-    pack_button = tk.Button(root, text="Pack Files", command=pack_files, image=pack_icon, compound=tk.LEFT,
-                            bg=btn_bg_color, fg=btn_fg_color, activebackground=btn_bg_color, activeforeground=btn_fg_color)
-    pack_button.pack(pady=12)
-    pack_button.pack(padx=8)
+    # Treeview
+    tree = ttk.Treeview(pal_win)
+    tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    tree.heading("#0", text="Pallet Contents")
 
-    extract_button = tk.Button(root, text="Extract Files", command=extract_files, image=extract_icon, compound=tk.LEFT,
-                               bg=btn_bg_color, fg=btn_fg_color, activebackground=btn_bg_color, activeforeground=btn_fg_color)
-    extract_button.pack(pady=12)
-    extract_button.pack(padx=8)
+    def load_pallet():
+        pal_file = filedialog.askopenfilename(filetypes=[("Pallets", "*.pal")])
+        if not pal_file: return
+        tree.delete(*tree.get_children())
+        for crate in list_pallet_contents(pal_file):
+            tree.insert("", "end", text=crate)
 
-    forklift_info = tk.Label(root, text="Forklift Brand: Standard (.cra)", bg=bg_color, fg=fg_color)
-    forklift_info.pack(side=tk.BOTTOM, pady=16)
-    forklift_info.pack(padx=8)
+    def pack_pal():
+        crates = filedialog.askopenfilenames(filetypes=[("Crates", "*.cra")],
+                                             title="Select crates for pallet")
+        if not crates: return
+        pal_file = filedialog.asksaveasfilename(defaultextension=".pal",
+                                                filetypes=[("Pallets", "*.pal")])
+        if not pal_file: return
+        pack_pallet(crates, pal_file)
+        load_pallet()
 
-    # Configure text and button styles
-    style = {
-        'bg': bg_color,
-        'fg': fg_color,
-        'activebackground': btn_bg_color,
-        'activeforeground': btn_fg_color
-    }
+    def unpack_pal():
+        pal_file = filedialog.askopenfilename(filetypes=[("Pallets", "*.pal")])
+        if not pal_file: return
+        folder = filedialog.askdirectory()
+        if not folder: return
+        extract_pallet(pal_file, folder)
 
-    root.option_add("*Button.Background", btn_bg_color)
-    root.option_add("*Button.Foreground", btn_fg_color)
-    root.option_add("*Button.ActiveBackground", btn_bg_color)
-    root.option_add("*Button.ActiveForeground", btn_fg_color)
+    # Buttons with icons
+    btn_frame = tk.Frame(pal_win, bg='#2b2b2b')
+    btn_frame.pack(fill=tk.X, pady=5)
 
-    root.mainloop()
+    tk.Button(btn_frame, text=" Open Pallet", command=load_pallet,
+              bg="#444444", fg="white", image=pallet_icon,
+              compound="left").pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text=" Pack Pallet", command=pack_pal,
+              bg="#444444", fg="white", image=pack_icon,
+              compound="left").pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text=" Unpack Pallet", command=unpack_pal,
+              bg="#444444", fg="white", image=unpack_icon,
+              compound="left").pack(side=tk.LEFT, padx=5)
 
-if __name__ == "__main__":
-    craeate_gui()
+# ---------------- Main UI ----------------
+tk.Button(root, text=" Pack Crate", command=pack_crate,
+          bg="#444444", fg="white", image=pack_icon,
+          compound="left").pack(pady=5)
+
+tk.Button(root, text=" Unpack Crate", command=unpack_crate,
+          bg="#444444", fg="white", image=unpack_icon,
+          compound="left").pack(pady=5)
+
+tk.Button(root, text=" Pallet Manager", command=open_pallet_manager,
+          bg="#444444", fg="white", image=pallet_icon,
+          compound="left").pack(pady=5)
+
+tk.Label(root, text="Forklift Brand: Standard (.cra / .pal)",
+         bg="#2b2b2b", fg="white").pack(pady=10)
+
+root.mainloop()
