@@ -1,4 +1,4 @@
-# Asset Warehouse
+# File Warehouse
 
 Custom archive formats with strong compression and authenticated encryption.
 
